@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Cliente = {
@@ -24,9 +23,12 @@ type Ingreso = {
   fecha: string;
 };
 
-export default function ClientePage() {
-const params = useParams<{ id: string }>();
-const clienteId = params.id;
+export default function ClientePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: clienteId } = use(params);
 
   const supabase = createClient();
 
