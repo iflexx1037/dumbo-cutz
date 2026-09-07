@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+export const dynamic = "force-dynamic";
+
 type Cliente = {
   id: string;
   nombre: string;
@@ -25,8 +27,8 @@ type Ingreso = {
 };
 
 export default function ClientePage() {
-  const params = useParams();
-  const clienteId = params.id as string;
+const params = useParams<{ id: string }>();
+const clienteId = params.id;
 
   const supabase = createClient();
 
