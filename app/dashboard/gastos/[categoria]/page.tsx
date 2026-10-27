@@ -179,6 +179,14 @@ async function eliminarGasto(gastoId: string) {
             </p>
           </div>
 
+
+<Link
+  href={`/dashboard/gastos/${areaValida}/estadisticas`}
+  className="rounded-xl border border-zinc-700 px-6 py-3 text-center font-semibold text-white transition hover:bg-zinc-800"
+>
+  📊 Estadísticas
+</Link>
+
           <Link
             href={`/dashboard/gastos/${areaValida}/nuevo`}
             className="rounded-xl bg-white px-6 py-3 text-center font-semibold text-black transition hover:bg-zinc-200"
