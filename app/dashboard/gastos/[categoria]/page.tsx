@@ -106,6 +106,33 @@ function GastosContenido() {
     0
   );
 
+
+async function eliminarGasto(gastoId: string) {
+  const confirmar = window.confirm(
+    "¿Estás seguro de que quieres eliminar este gasto? Esta acción no se puede deshacer."
+  );
+
+  if (!confirmar) return;
+
+  const supabase = createClient();
+
+  const { error: errorSupabase } = await supabase
+    .from("gastos")
+    .delete()
+    .eq("id", gastoId)
+    .eq("area", areaValida!);
+
+  if (errorSupabase) {
+    alert("No se pudo eliminar: " + errorSupabase.message);
+    return;
+  }
+
+  setGastos((actuales) =>
+    actuales.filter((gasto) => gasto.id !== gastoId)
+  );
+}
+
+
   const dinero = (cantidad: number) =>
     cantidad.toLocaleString("en-US", {
       style: "currency",
@@ -246,11 +273,30 @@ function GastosContenido() {
                       )}
                     </div>
 
-                    <div className="sm:text-right">
-                      <p className="text-2xl font-bold text-red-400">
-                        -{dinero(Number(gasto.monto))}
-                      </p>
-                    </div>
+          
+<div className="sm:text-right">
+  <p className="text-2xl font-bold text-red-400">
+    -{dinero(Number(gasto.monto))}
+  </p>
+
+  <div className="mt-3 flex gap-2 sm:justify-end">
+    <Link
+      href={`/dashboard/gastos/${areaValida}/editar/${gasto.id}`}
+      className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-white hover:bg-zinc-800"
+    >
+      ✏️ Editar
+    </Link>
+
+    <button
+      type="button"
+      onClick={() => eliminarGasto(gasto.id)}
+      className="rounded-xl border border-red-900 px-4 py-2 text-sm text-red-400 hover:bg-red-950"
+    >
+      🗑️ Eliminar
+    </button>
+  </div>
+</div>
+
 
                   </div>
                 </div>
