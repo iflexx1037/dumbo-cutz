@@ -65,6 +65,17 @@ export default async function CategoriaGastosPage({
           ← Volver a Gastos
         </Link>
 
+        
+<div className="mt-8 flex justify-end">
+  <Link
+    href={`/dashboard/gastos/${categoria}/nuevo`}
+    className="rounded-xl bg-white px-6 py-3 font-semibold text-black transition hover:bg-zinc-200"
+  >
+    + Nuevo gasto
+  </Link>
+</div>
+
+
         <header className="mt-8">
           <p className="text-sm text-zinc-500">
             DUMBO CUTZ / GASTOS
