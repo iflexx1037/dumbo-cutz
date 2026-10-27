@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -21,10 +22,9 @@ export default function DashboardPage() {
 
         <div className="grid gap-5 sm:grid-cols-2">
 
-          {/* CLIENTES */}
           <Link
             href="/dashboard/clientes"
-            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 text-left transition hover:border-zinc-600"
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
           >
             <div className="mb-5 text-4xl">
               👥
@@ -39,10 +39,9 @@ export default function DashboardPage() {
             </p>
           </Link>
 
-          {/* ESTADÍSTICAS */}
           <Link
             href="/dashboard/estadisticas"
-            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 text-left transition hover:border-zinc-600"
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
           >
             <div className="mb-5 text-4xl">
               📊
@@ -54,6 +53,24 @@ export default function DashboardPage() {
 
             <p className="mt-2 text-zinc-400">
               Revisa tus cortes e ingresos.
+            </p>
+          </Link>
+
+          <Link
+            href="/dashboard/gastos"
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+          >
+            <div className="mb-5 text-4xl">
+              💸
+            </div>
+
+            <h2 className="text-2xl font-bold">
+              Gastos
+            </h2>
+
+            <p className="mt-2 text-zinc-400">
+              Administra los gastos de Asicale Club,
+              personales y barbería.
             </p>
           </Link>
 
