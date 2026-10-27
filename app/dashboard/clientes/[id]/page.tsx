@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -23,12 +24,9 @@ type Ingreso = {
   fecha: string;
 };
 
-export default function ClientePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id: clienteId } = use(params);
+function ClienteContenido() {
+  const params = useParams();
+  const clienteId = params.id as string;
 
   const supabase = createClient();
 
@@ -349,6 +347,8 @@ export default function ClientePage({
                         Pagado
                       </p>
 
+                      
+
                     </div>
 
                   </div>
@@ -363,5 +363,24 @@ export default function ClientePage({
 
       </div>
     </main>
+    
+  );
+}
+
+export default function ClientePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black px-6 py-10 text-white">
+          <div className="mx-auto max-w-5xl">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-10 text-center text-zinc-500">
+              Cargando perfil del cliente...
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <ClienteContenido />
+    </Suspense>
   );
 }
