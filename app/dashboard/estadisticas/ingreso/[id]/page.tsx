@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -14,7 +14,7 @@ type Ingreso = {
   fecha: string;
 };
 
-export default function EditarIngresoPage() {
+function EditarIngresoContenido() {
   const params = useParams();
   const router = useRouter();
 
@@ -309,5 +309,24 @@ export default function EditarIngresoPage() {
 
       </div>
     </main>
+  );
+}
+
+
+export default function EditarIngresoPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black px-6 py-10 text-white">
+          <div className="mx-auto max-w-5xl">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-10 text-center text-zinc-500">
+              Cargando ingreso...
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <EditarIngresoContenido />
+    </Suspense>
   );
 }

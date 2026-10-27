@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function EditarClientePage() {
+function EditarClienteContenido() {
   const params = useParams();
   const router = useRouter();
   const clienteId = params.id as string;
@@ -298,5 +298,23 @@ export default function EditarClientePage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function EditarClientePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black px-6 py-10 text-white">
+          <div className="mx-auto max-w-5xl">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-10 text-center text-zinc-500">
+              Cargando editor del cliente...
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <EditarClienteContenido />
+    </Suspense>
   );
 }
