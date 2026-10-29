@@ -158,7 +158,7 @@ async function eliminarGasto(gastoId: string) {
       <div className="mx-auto max-w-5xl">
 
         <Link
-          href="/dashboard/gastos"
+          href={areaValida === "asicale" ? "/dashboard/asicale" : "/dashboard/gastos"}
           className="text-sm text-zinc-500 hover:text-white"
         >
           ← Volver a Gastos
