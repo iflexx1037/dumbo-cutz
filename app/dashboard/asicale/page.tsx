@@ -52,6 +52,25 @@ export default function AsicalePage() {
               Consulta y administra los gastos de Asicale Club.
             </p>
           </Link>
+
+          
+<Link
+  href="/dashboard/asicale/finanzas"
+  className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+>
+  <div className="mb-5 text-4xl">
+    📈
+  </div>
+
+  <h2 className="text-2xl font-bold">
+    Resumen financiero
+  </h2>
+
+  <p className="mt-3 text-zinc-400">
+    Consulta las ventas, gastos y ganancias de Asicale Club.
+  </p>
+</Link>
+
         </div>
       </div>
     </main>
