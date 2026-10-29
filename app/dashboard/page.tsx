@@ -22,6 +22,24 @@ export default function DashboardPage() {
 
         <div className="grid gap-5 sm:grid-cols-2">
 
+
+<Link
+  href="/dashboard/citas"
+  className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+>
+  <div className="mb-5 text-4xl">
+    📅
+  </div>
+
+  <h2 className="text-2xl font-bold">
+    Citas
+  </h2>
+
+  <p className="mt-3 text-zinc-400">
+    Organiza tus citas, clientes y pagos desde el calendario.
+  </p>
+</Link>
+
           <Link
             href="/dashboard/clientes"
             className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
