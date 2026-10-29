@@ -40,6 +40,24 @@ export default function DashboardPage() {
   </p>
 </Link>
 
+
+<Link
+  href="/dashboard/asicale"
+  className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+>
+  <div className="mb-5 text-4xl">
+    👕
+  </div>
+
+  <h2 className="text-2xl font-bold">
+    Asicale Club
+  </h2>
+
+  <p className="mt-3 text-zinc-400">
+    Control de ingresos y gastos de tu marca.
+  </p>
+</Link>
+
           <Link
             href="/dashboard/clientes"
             className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"

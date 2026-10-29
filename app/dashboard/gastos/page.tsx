@@ -3,13 +3,6 @@ import Link from "next/link";
 
 const secciones = [
   {
-    nombre: "Asicale Club",
-    descripcion:
-      "Producción, inventario, envíos, publicidad y eventos.",
-    icono: "👕",
-    ruta: "/dashboard/gastos/asicale",
-  },
-  {
     nombre: "Personales",
     descripcion:
       "Gasolina, comida, compras y gastos personales.",
