@@ -125,11 +125,11 @@ export default function IngresosAsicalePage() {
 </Link>
 
           <Link
-            href="/dashboard/asicale/ingresos/nuevo"
-            className="rounded-xl bg-white px-6 py-3 font-bold text-black hover:bg-zinc-200"
-          >
-            + Nuevo ingreso
-          </Link>
+  href="/dashboard/asicale/ingresos/nuevo"
+  className="rounded-xl bg-white px-6 py-3 font-bold text-black hover:bg-zinc-200"
+>
+  + Nuevo ingreso
+</Link>
         </header>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
