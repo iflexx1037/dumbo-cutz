@@ -307,7 +307,7 @@ export default function CitasPage() {
             <p className="text-xs text-zinc-500">
               DUMBO CUTZ / CITAS
             </p>
-            <h1 className="mt-2 text-4xl font-bold">
+            <h1 className="mt-2 text-3xl font-bold sm:text-4xl">
               📅 Calendario
             </h1>
             <p className="mt-2 text-zinc-400">
@@ -317,14 +317,14 @@ export default function CitasPage() {
 
           <Link
             href="/dashboard/citas/nueva"
-            className="rounded-xl bg-white px-6 py-3 font-bold text-black hover:bg-zinc-200"
+            className="w-full rounded-xl bg-white px-6 py-3 text-center font-bold text-black hover:bg-zinc-200 sm:w-auto"
           >
             + Nueva cita
           </Link>
         </header>
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-          <div className="flex items-center gap-3">
+        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-3 sm:mt-8 sm:p-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => navegar(-1)}
               className="rounded-lg border border-zinc-700 px-3 py-2"
@@ -346,17 +346,17 @@ export default function CitasPage() {
               Hoy
             </button>
 
-            <h2 className="ml-2 text-lg font-bold capitalize">
+            <h2 className="w-full text-lg font-bold capitalize sm:ml-2 sm:w-auto">
               {titulo}
             </h2>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
             {(["mes", "semana", "dia"] as Vista[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setVista(v)}
-                className={`rounded-lg px-4 py-2 text-sm capitalize ${
+                className={`rounded-lg px-3 py-3 text-sm capitalize sm:px-4 sm:py-2 ${
                   vista === v
                     ? "bg-white font-bold text-black"
                     : "border border-zinc-700 text-zinc-300"
@@ -375,83 +375,142 @@ export default function CitasPage() {
         )}
 
         {cargando || !fecha ? (
-          <p className="mt-10 text-zinc-400">
-            Cargando calendario...
-          </p>
+          <p className="mt-10 text-zinc-400">Cargando calendario...</p>
         ) : (
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950">
-            <div className={vista === "mes" ? "min-w-[700px]" : "min-w-[770px]"}>
-              {vista !== "dia" && (
+          <>
+            {/* Teléfono: semana y día como agenda, sin columnas cortadas. */}
+            {vista !== "mes" && (
+              <div className="mt-5 space-y-3 md:hidden">
+                {diasCalendario.map((dia) => {
+                  const citasDia = citasPorFecha[dia] || [];
+                  const esHoy = dia === fechaISO(new Date());
+                  return (
+                    <section
+                      key={dia}
+                      className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
+                    >
+                      <div className="flex items-center justify-between gap-3 border-b border-zinc-800 p-4">
+                        <h3 className="font-bold capitalize">
+                          {desdeISO(dia).toLocaleDateString("es-PR", {
+                            weekday: "long", day: "numeric", month: "long",
+                          })}
+                        </h3>
+                        {esHoy && (
+                          <span className="rounded-lg bg-white px-2 py-1 text-xs font-bold text-black">
+                            Hoy
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-3 p-3">
+                        {citasDia.length ? (
+                          citasDia.map(tarjetaCita)
+                        ) : (
+                          <p className="py-3 text-center text-sm text-zinc-500">
+                            Sin citas
+                          </p>
+                        )}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Teléfono: mes compacto; tocar un día abre sus citas. */}
+            {vista === "mes" && (
+              <div className="mt-5 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 md:hidden">
                 <div className="grid grid-cols-7 border-b border-zinc-800">
                   {dias.map((dia) => (
-                    <div
-                      key={dia}
-                      className="p-3 text-center text-xs font-bold text-zinc-400"
-                    >
+                    <div key={dia} className="py-3 text-center text-[11px] font-bold text-zinc-400">
                       {dia}
                     </div>
                   ))}
                 </div>
-              )}
-
-              <div
-                className={
-                  vista === "dia"
-                    ? "grid grid-cols-1"
-                    : "grid grid-cols-7"
-                }
-              >
-                {diasCalendario.map((dia) => {
-                  const delMes =
-                    dia.slice(0, 7) === fecha.slice(0, 7);
-                  const esHoy = dia === fechaISO(new Date());
-                  const citasDia = citasPorFecha[dia] || [];
-
-                  return (
-                    <div
-                      key={dia}
-                      className={`border-b border-r border-zinc-800 p-2 ${
-                        vista === "mes" ? "min-h-36" : "min-h-80"
-                      } ${
-                        vista === "mes" && !delMes
-                          ? "bg-zinc-950/50 opacity-50"
-                          : ""
-                      }`}
-                    >
+                <div className="grid grid-cols-7">
+                  {diasCalendario.map((dia) => {
+                    const delMes = dia.slice(0, 7) === fecha.slice(0, 7);
+                    const esHoy = dia === fechaISO(new Date());
+                    const cantidad = (citasPorFecha[dia] || []).length;
+                    return (
                       <button
-                        onClick={() => {
-                          setFecha(dia);
-                          setVista("dia");
-                        }}
-                        className={`mb-3 rounded-lg px-2 py-1 text-sm font-semibold ${
-                          esHoy
-                            ? "bg-white text-black"
-                            : "text-zinc-300 hover:bg-zinc-800"
+                        key={dia}
+                        type="button"
+                        onClick={() => { setFecha(dia); setVista("dia"); }}
+                        className={`flex min-h-16 min-w-0 flex-col items-center justify-start gap-1 border-b border-r border-zinc-800 p-1 text-sm ${
+                          delMes ? "text-white" : "text-zinc-600"
                         }`}
+                        aria-label={`${dia}: ${cantidad} citas`}
                       >
-                        {vista === "dia"
-                          ? desdeISO(dia).toLocaleDateString("es-PR", {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                            })
-                          : desdeISO(dia).getDate()}
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+                          esHoy ? "bg-white font-bold text-black" : ""
+                        }`}>
+                          {desdeISO(dia).getDate()}
+                        </span>
+                        {cantidad > 0 && (
+                          <span className="rounded-full bg-green-900/70 px-1.5 text-[10px] font-semibold text-green-300">
+                            {cantidad}
+                          </span>
+                        )}
                       </button>
+                    );
+                  })}
+                </div>
+                <p className="p-3 text-center text-xs text-zinc-500">
+                  Toca una fecha para ver sus citas.
+                </p>
+              </div>
+            )}
 
-                      <div className="space-y-2">
-                        {citasDia.map(tarjetaCita)}
+            {/* Tablet y computadora: calendario original de columnas. */}
+            <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950 md:block">
+              <div className={vista === "dia" ? "w-full" : "min-w-[770px]"}>
+                {vista !== "dia" && (
+                  <div className="grid grid-cols-7 border-b border-zinc-800">
+                    {dias.map((dia) => (
+                      <div key={dia} className="p-3 text-center text-xs font-bold text-zinc-400">
+                        {dia}
                       </div>
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                )}
+                <div className={vista === "dia" ? "grid grid-cols-1" : "grid grid-cols-7"}>
+                  {diasCalendario.map((dia) => {
+                    const delMes = dia.slice(0, 7) === fecha.slice(0, 7);
+                    const esHoy = dia === fechaISO(new Date());
+                    const citasDia = citasPorFecha[dia] || [];
+                    return (
+                      <div
+                        key={dia}
+                        className={`min-w-0 border-b border-r border-zinc-800 p-2 ${
+                          vista === "mes" ? "min-h-36" : "min-h-80"
+                        } ${vista === "mes" && !delMes ? "bg-zinc-950/50 opacity-50" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setFecha(dia); setVista("dia"); }}
+                          className={`mb-3 rounded-lg px-2 py-1 text-sm font-semibold ${
+                            esHoy ? "bg-white text-black" : "text-zinc-300 hover:bg-zinc-800"
+                          }`}
+                        >
+                          {vista === "dia"
+                            ? desdeISO(dia).toLocaleDateString("es-PR", {
+                                weekday: "long", day: "numeric", month: "long",
+                              })
+                            : desdeISO(dia).getDate()}
+                        </button>
+                        <div className="space-y-2">{citasDia.map(tarjetaCita)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
 
         <p className="mt-4 text-sm text-zinc-500">
-          Desliza horizontalmente para ver todos los días en pantallas pequeñas.
           Las citas pagadas aparecen en verde.
+          <span className="hidden md:inline"> En tablets puedes deslizar el calendario horizontalmente.</span>
         </p>
       </div>
     </main>
