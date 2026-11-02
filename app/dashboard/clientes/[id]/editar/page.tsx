@@ -24,9 +24,11 @@ function EditarClienteContenido() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    cargarCliente();
-  }, [clienteId]);
+useEffect(() => {
+  setGuardando(false);
+  setError("");
+  cargarCliente();
+}, [clienteId]);
 
   async function cargarCliente() {
     setLoading(true);
@@ -314,7 +316,11 @@ async function guardarCambios(
 );
 }
 
+
 export default function EditarClientePage() {
+  const params = useParams();
+  const clienteId = params.id as string;
+
   return (
     <Suspense
       fallback={
@@ -327,7 +333,8 @@ export default function EditarClientePage() {
         </main>
       }
     >
-      <EditarClienteContenido />
+      <EditarClienteContenido key={clienteId} />
     </Suspense>
   );
 }
+
