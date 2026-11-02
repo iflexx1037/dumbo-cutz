@@ -62,6 +62,7 @@ useEffect(() => {
   }
 
   
+
 async function guardarCambios(
   e: React.FormEvent<HTMLFormElement>
 ) {
@@ -73,6 +74,8 @@ async function guardarCambios(
   setError("");
 
   try {
+    const supabase = createClient();
+
     const { data, error: guardarError } = await supabase
       .from("clientes")
       .update({
@@ -93,23 +96,22 @@ async function guardarCambios(
     }
 
     if (!data) {
-      throw new Error(
-        "No se pudo confirmar la actualización del cliente."
-      );
+      throw new Error("No se confirmó la actualización.");
     }
 
-    router.push(`/dashboard/clientes/${clienteId}`);
-    router.refresh();
+    // Recarga completa para evitar estados anteriores
+    window.location.assign(
+      `/dashboard/clientes/${clienteId}`
+    );
 
   } catch (err) {
-    console.error("Error al guardar cliente:", err);
+    console.error("Error al editar cliente:", err);
 
     setError(
       err instanceof Error
         ? err.message
         : "No se pudieron guardar los cambios."
     );
-
   } finally {
     setGuardando(false);
   }

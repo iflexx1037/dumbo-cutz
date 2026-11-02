@@ -20,32 +20,45 @@ export default function NuevoClientePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function guardarCliente(e: React.FormEvent) {
-    e.preventDefault();
+  
 
-    setLoading(true);
-    setError("");
+async function guardarCliente(e: React.FormEvent) {
+  e.preventDefault();
 
-    const { error } = await supabase.from("clientes").insert({
-      nombre,
-      telefono: telefono || null,
-      temas_conversacion: temasConversacion || null,
-      corte_actual: corteActual || null,
-      precio: precio ? Number(precio) : null,
-      frecuencia: frecuencia || null,
-      ultima_visita: ultimaVisita || null,
-    });
+  if (loading) return;
 
-    if (error) {
-      console.error(error);
-      setError("No se pudo guardar el cliente.");
-      setLoading(false);
-      return;
+  setLoading(true);
+  setError("");
+
+  try {
+    const supabase = createClient();
+
+    const { error: guardarError } = await supabase
+      .from("clientes")
+      .insert({
+        nombre: nombre.trim(),
+        telefono: telefono || null,
+        temas_conversacion: temasConversacion || null,
+        corte_actual: corteActual || null,
+        precio: precio ? Number(precio) : null,
+        frecuencia: frecuencia || null,
+        ultima_visita: ultimaVisita || null,
+      });
+
+    if (guardarError) {
+      throw guardarError;
     }
 
-    router.push("/dashboard/clientes");
-    router.refresh();
+    // Navegación completa para limpiar los estados anteriores
+    window.location.assign("/dashboard/clientes");
+
+  } catch (err) {
+    console.error("Error al crear cliente:", err);
+    setError("No se pudo guardar el cliente.");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <main className="min-h-screen bg-black px-6 py-8 text-white">
