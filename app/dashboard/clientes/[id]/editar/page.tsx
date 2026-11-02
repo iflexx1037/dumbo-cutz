@@ -119,11 +119,14 @@ async function guardarCambios(
 }
 
 
+
 async function eliminarCliente() {
   if (guardando || eliminando) return;
 
   const confirmado = window.confirm(
-    "¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer."
+    "¿Seguro que deseas eliminar este cliente? " +
+    "Desaparecerá de tu lista, pero sus citas e ingresos " +
+    "anteriores se conservarán."
   );
 
   if (!confirmado) return;
@@ -136,18 +139,17 @@ async function eliminarCliente() {
 
     const { data, error: eliminarError } = await supabase
       .from("clientes")
-      .delete()
+      .update({ eliminado: true })
       .eq("id", clienteId)
-      .select("id");
+      .select("id")
+      .single();
 
     if (eliminarError) {
       throw eliminarError;
     }
 
-    if (!data || data.length === 0) {
-      throw new Error(
-        "No se pudo eliminar el cliente. Verifica los permisos."
-      );
+    if (!data) {
+      throw new Error("No se pudo confirmar la eliminación.");
     }
 
     window.location.assign("/dashboard/clientes");
@@ -160,6 +162,7 @@ async function eliminarCliente() {
         ? err.message
         : "No se pudo eliminar el cliente."
     );
+
   } finally {
     setEliminando(false);
   }

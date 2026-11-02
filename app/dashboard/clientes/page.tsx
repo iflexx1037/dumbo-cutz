@@ -28,10 +28,10 @@ export default function ClientesPage() {
   async function cargarClientes() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("*")
-      .order("nombre", { ascending: true });
+const { data, error } = await supabase
+  .from("clientes")
+  .select("*")
+  .eq("eliminado", false);
 
     if (error) {
       console.error("Error cargando clientes:", error);
