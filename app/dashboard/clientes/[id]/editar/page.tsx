@@ -317,10 +317,8 @@ async function guardarCambios(
 }
 
 
-export default function EditarClientePage() {
-  const params = useParams();
-  const clienteId = params.id as string;
 
+export default function EditarClientePage() {
   return (
     <Suspense
       fallback={
@@ -333,8 +331,7 @@ export default function EditarClientePage() {
         </main>
       }
     >
-      <EditarClienteContenido key={clienteId} />
+      <EditarClienteContenido />
     </Suspense>
   );
 }
-
