@@ -22,6 +22,7 @@ function EditarClienteContenido() {
 
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [error, setError] = useState("");
 
 useEffect(() => {
@@ -114,6 +115,53 @@ async function guardarCambios(
     );
   } finally {
     setGuardando(false);
+  }
+}
+
+
+async function eliminarCliente() {
+  if (guardando || eliminando) return;
+
+  const confirmado = window.confirm(
+    "¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer."
+  );
+
+  if (!confirmado) return;
+
+  setEliminando(true);
+  setError("");
+
+  try {
+    const supabase = createClient();
+
+    const { data, error: eliminarError } = await supabase
+      .from("clientes")
+      .delete()
+      .eq("id", clienteId)
+      .select("id");
+
+    if (eliminarError) {
+      throw eliminarError;
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error(
+        "No se pudo eliminar el cliente. Verifica los permisos."
+      );
+    }
+
+    window.location.assign("/dashboard/clientes");
+
+  } catch (err) {
+    console.error("Error al eliminar cliente:", err);
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : "No se pudo eliminar el cliente."
+    );
+  } finally {
+    setEliminando(false);
   }
 }
 
@@ -292,24 +340,46 @@ async function guardarCambios(
 
 
 {/* BOTONES */}
-<div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
 
-  <Link
-    href={`/dashboard/clientes/${clienteId}`}
-    className="rounded-xl border border-zinc-700 px-6 py-3 text-center font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-  >
-    Cancelar
-  </Link>
+{/* BOTONES */}
+<div className="flex flex-col gap-4 pt-4">
 
-  <button
-    type="submit"
-    disabled={guardando || loading}
-    aria-busy={guardando}
-    className="rounded-xl bg-white px-6 py-3 font-bold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    {guardando ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
-  </button>
+  {/* ELIMINAR CLIENTE */}
+  <div className="border-t border-zinc-800 pt-5">
+    <p className="mb-3 text-sm text-zinc-500">
+      ¿Ya no necesitas este cliente? Puedes eliminarlo
+      permanentemente.
+    </p>
 
+    <button
+      type="button"
+      onClick={eliminarCliente}
+      disabled={guardando || eliminando}
+      className="w-full rounded-xl border border-red-900 bg-red-950/30 px-6 py-3 font-bold text-red-400 transition hover:bg-red-950/60 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+    >
+      {eliminando ? "ELIMINANDO..." : "ELIMINAR CLIENTE"}
+    </button>
+  </div>
+
+  {/* GUARDAR Y CANCELAR */}
+  <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+    <Link
+      href={`/dashboard/clientes/${clienteId}`}
+      className="rounded-xl border border-zinc-700 px-6 py-3 text-center font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+    >
+      Cancelar
+    </Link>
+
+    <button
+      type="submit"
+      disabled={guardando || eliminando}
+      className="rounded-xl bg-white px-6 py-3 font-bold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {guardando ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
+    </button>
+
+  </div>
 </div>
 
 </form>
