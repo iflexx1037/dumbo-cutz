@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -10,7 +10,7 @@ function EditarClienteContenido() {
   const router = useRouter();
   const clienteId = params.id as string;
 
-  const supabase = createClient();
+ const supabase = useMemo(() => createClient(), []);
 
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -59,46 +59,59 @@ function EditarClienteContenido() {
     setLoading(false);
   }
 
-  async function guardarCambios(
-    e: React.FormEvent
-  ) {
-    e.preventDefault();
+  
+async function guardarCambios(
+  e: React.FormEvent<HTMLFormElement>
+) {
+  e.preventDefault();
 
-    setGuardando(true);
-    setError("");
+  if (guardando) return;
 
-    const { error } = await supabase
+  setGuardando(true);
+  setError("");
+
+  try {
+    const { data, error: guardarError } = await supabase
       .from("clientes")
       .update({
         nombre: nombre.trim(),
         telefono: telefono || null,
-        temas_conversacion:
-          temasConversacion || null,
+        temas_conversacion: temasConversacion || null,
         corte_actual: corteActual || null,
-        precio: precio
-          ? Number(precio)
-          : null,
+        precio: precio ? Number(precio) : null,
         frecuencia: frecuencia || null,
-        ultima_visita:
-          ultimaVisita || null,
+        ultima_visita: ultimaVisita || null,
       })
-      .eq("id", clienteId);
+      .eq("id", clienteId)
+      .select("id")
+      .single();
 
-    if (error) {
-      console.error(error);
-      setError(
-        "No se pudieron guardar los cambios."
-      );
-      setGuardando(false);
-      return;
+    if (guardarError) {
+      throw guardarError;
     }
 
-    router.push(
-      `/dashboard/clientes/${clienteId}`
+    if (!data) {
+      throw new Error(
+        "No se pudo confirmar la actualización del cliente."
+      );
+    }
+
+    router.push(`/dashboard/clientes/${clienteId}`);
+    router.refresh();
+
+  } catch (err) {
+    console.error("Error al guardar cliente:", err);
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : "No se pudieron guardar los cambios."
     );
 
-    router.refresh();
+  } finally {
+    setGuardando(false);
   }
+}
 
   if (loading) {
     return (
@@ -273,32 +286,32 @@ function EditarClienteContenido() {
             </div>
           )}
 
-          {/* BOTONES */}
-          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
 
-            <Link
-              href={`/dashboard/clientes/${clienteId}`}
-              className="rounded-xl border border-zinc-700 px-6 py-3 text-center font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-            >
-              Cancelar
-            </Link>
+{/* BOTONES */}
+<div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
 
-            <button
-              type="submit"
-              disabled={guardando}
-              className="rounded-xl bg-white px-6 py-3 font-bold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {guardando
-                ? "GUARDANDO..."
-                : "GUARDAR CAMBIOS"}
-            </button>
+  <Link
+    href={`/dashboard/clientes/${clienteId}`}
+    className="rounded-xl border border-zinc-700 px-6 py-3 text-center font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+  >
+    Cancelar
+  </Link>
 
-          </div>
+  <button
+    type="submit"
+    disabled={guardando || loading}
+    aria-busy={guardando}
+    className="rounded-xl bg-white px-6 py-3 font-bold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {guardando ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
+  </button>
 
-        </form>
-      </div>
-    </main>
-  );
+</div>
+
+</form>
+</div>
+</main>
+);
 }
 
 export default function EditarClientePage() {

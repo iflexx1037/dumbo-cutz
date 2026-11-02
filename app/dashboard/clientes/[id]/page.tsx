@@ -154,7 +154,7 @@ function ClienteContenido() {
         <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
   <div>
-    <h1 className="text-4xl font-bold">
+    <h1 className="text-3xl font-bold sm:text-4xl">
       {cliente.nombre}
     </h1>
 

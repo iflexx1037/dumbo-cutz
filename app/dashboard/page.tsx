@@ -20,12 +20,12 @@ export default function DashboardPage() {
           </p>
         </header>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-6">
 
 
 <Link
   href="/dashboard/citas"
-  className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+  className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 sm:p-8 transition hover:border-zinc-600"
 >
   <div className="mb-5 text-4xl">
     📅
@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
           <Link
             href="/dashboard/clientes"
-            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 sm:p-8 transition hover:border-zinc-600"
           >
             <div className="mb-5 text-4xl">
               👥
@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
           <Link
             href="/dashboard/estadisticas"
-            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 sm:p-8 transition hover:border-zinc-600"
           >
             <div className="mb-5 text-4xl">
               📊
@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
           <Link
             href="/dashboard/gastos"
-            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600"
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 sm:p-8 transition hover:border-zinc-600"
           >
             <div className="mb-5 text-4xl">
               💸

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -28,7 +28,7 @@ function EditarContenido() {
     let activo = true;
 
     async function cargar() {
-      const supabase = createClient();
+      const supabase = useMemo(() => createClient(), []);
       const { data, error: consultaError } = await supabase
         .from("ingresos_asicale")
         .select("*")
