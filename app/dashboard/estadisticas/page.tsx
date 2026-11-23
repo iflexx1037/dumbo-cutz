@@ -24,7 +24,7 @@ export default function EstadisticasPage() {
   const [fechaActual, setFechaActual] = useState<string | null>(null);
 
   useEffect(() => {
-    setFechaActual(new Date().toISOString());
+    setFechaActual(fechaPuertoRico());
     cargarIngresos();
   }, []);
 
@@ -46,57 +46,42 @@ export default function EstadisticasPage() {
     setLoading(false);
   }
 
-  function obtenerInicioPeriodo(
-    tipo: Periodo,
-    fechaBase: Date
-  ) {
-    const ahora = new Date(fechaBase);
+  // La fecha del ingreso es la fecha del servicio, no su fecha de creación.
+  // Se compara YYYY-MM-DD sin new Date(fecha) para evitar cambios de día por UTC.
+  function fechaServicio(valor: string): string {
+    return String(valor ?? "").slice(0, 10);
+  }
 
-    if (tipo === "dia") {
-      const inicio = new Date(ahora);
-      inicio.setHours(0, 0, 0, 0);
-      return inicio;
-    }
+  function fechaPuertoRico(): string {
+    const partes = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Puerto_Rico",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(new Date());
+    const valor = (tipo: string) => partes.find(p => p.type === tipo)?.value ?? "";
+    return `${valor("year")}-${valor("month")}-${valor("day")}`;
+  }
 
-    if (tipo === "semana") {
-      const inicio = new Date(ahora);
-      const dia = inicio.getDay();
+  function fechaCalendario(valor: string): Date {
+    return new Date(`${valor}T12:00:00`);
+  }
 
-      const diferencia = dia === 0 ? 6 : dia - 1;
-
-      inicio.setDate(inicio.getDate() - diferencia);
-      inicio.setHours(0, 0, 0, 0);
-
-      return inicio;
-    }
-
-    if (tipo === "mes") {
-      return new Date(
-        ahora.getFullYear(),
-        ahora.getMonth(),
-        1
-      );
-    }
-
-    return new Date(
-      ahora.getFullYear(),
-      0,
-      1
-    );
+  function claveFecha(fecha: Date): string {
+    return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
   }
 
   const ingresosPeriodo = useMemo(() => {
-    if (!fechaActual) {
-      return [];
-    }
-
-    const inicio = obtenerInicioPeriodo(
-      periodo,
-      new Date(fechaActual)
-    );
-
-    return ingresos.filter((ingreso) => {
-      return new Date(ingreso.fecha) >= inicio;
+    if (!fechaActual) return [];
+    const hoy = fechaActual;
+    const base = fechaCalendario(hoy);
+    const inicioSemana = fechaCalendario(hoy);
+    inicioSemana.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    const inicio = periodo === "dia" ? hoy
+      : periodo === "semana" ? claveFecha(inicioSemana)
+      : periodo === "mes" ? hoy.slice(0, 7) + "-01"
+      : hoy.slice(0, 4) + "-01-01";
+    return ingresos.filter(ingreso => {
+      const fecha = fechaServicio(ingreso.fecha);
+      return /^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha >= inicio && fecha <= hoy;
     });
   }, [ingresos, periodo, fechaActual]);
 
@@ -193,177 +178,52 @@ export default function EstadisticasPage() {
       : 0;
 
   const datosGrafico = useMemo(() => {
-    if (!fechaActual) {
-      return [];
-    }
-
-    const ahora = new Date(fechaActual);
-
-    const datos: {
-      etiqueta: string;
-      total: number;
-    }[] = [];
+    if (!fechaActual) return [];
+    const ahora = fechaCalendario(fechaActual);
+    const sumar = (desde: string, hasta: string) => ingresosPeriodo
+      .filter(i => {
+        const f = fechaServicio(i.fecha);
+        return f >= desde && f <= hasta;
+      })
+      .reduce((s, i) => s + Number(i.precio), 0);
 
     if (periodo === "dia") {
-      for (let hora = 8; hora <= 20; hora++) {
-        const total = ingresosPeriodo
-          .filter((ingreso) => {
-            const fecha = new Date(ingreso.fecha);
-
-            return fecha.getHours() === hora;
-          })
-          .reduce(
-            (sum, ingreso) =>
-              sum + Number(ingreso.precio),
-            0
-          );
-
-        datos.push({
-          etiqueta: `${hora}:00`,
-          total,
-        });
-      }
+      // Un campo DATE no conserva la hora real del recorte.
+      return [{ etiqueta: "Hoy", total: sumar(fechaActual, fechaActual) }];
     }
-
     if (periodo === "semana") {
-      for (let i = 0; i < 7; i++) {
-        const fecha = new Date(ahora);
-
-        const diaActual = fecha.getDay();
-
-        const diferencia =
-          diaActual === 0
-            ? 6
-            : diaActual - 1;
-
-        fecha.setDate(
-          fecha.getDate() -
-            diferencia +
-            i
-        );
-
-        fecha.setHours(0, 0, 0, 0);
-
-        const siguiente = new Date(fecha);
-
-        siguiente.setDate(
-          siguiente.getDate() + 1
-        );
-
-        const total = ingresosPeriodo
-          .filter((ingreso) => {
-            const fechaIngreso =
-              new Date(ingreso.fecha);
-
-            return (
-              fechaIngreso >= fecha &&
-              fechaIngreso < siguiente
-            );
-          })
-          .reduce(
-            (sum, ingreso) =>
-              sum + Number(ingreso.precio),
-            0
-          );
-
-        datos.push({
-          etiqueta: fecha.toLocaleDateString(
-            "es-PR",
-            {
-              weekday: "short",
-            }
-          ),
-          total,
-        });
-      }
+      const lunes = new Date(ahora);
+      lunes.setDate(ahora.getDate() - ((ahora.getDay() + 6) % 7));
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(lunes);
+        d.setDate(lunes.getDate() + i);
+        const f = claveFecha(d);
+        return {
+          etiqueta: d.toLocaleDateString("es-PR", { weekday: "short" }),
+          total: sumar(f, f),
+        };
+      });
     }
-
     if (periodo === "mes") {
-      for (let i = 0; i < 5; i++) {
-        const inicio = new Date(
-          ahora.getFullYear(),
-          ahora.getMonth(),
-          i * 7 + 1
-        );
-
-        const siguiente = new Date(
-          ahora.getFullYear(),
-          ahora.getMonth(),
-          i * 7 + 8
-        );
-
-        const total = ingresosPeriodo
-          .filter((ingreso) => {
-            const fecha =
-              new Date(ingreso.fecha);
-
-            return (
-              fecha >= inicio &&
-              fecha < siguiente
-            );
-          })
-          .reduce(
-            (sum, ingreso) =>
-              sum + Number(ingreso.precio),
-            0
-          );
-
-        datos.push({
-          etiqueta: `Sem ${i + 1}`,
-          total,
-        });
-      }
+      const year = ahora.getFullYear();
+      const month = ahora.getMonth();
+      const ultimoDia = new Date(year, month + 1, 0).getDate();
+      return Array.from({ length: Math.ceil(ultimoDia / 7) }, (_, i) => {
+        const inicio = claveFecha(new Date(year, month, i * 7 + 1));
+        const fin = claveFecha(new Date(year, month, Math.min((i + 1) * 7, ultimoDia)));
+        return { etiqueta: `Sem ${i + 1}`, total: sumar(inicio, fin) };
+      });
     }
-
-    if (periodo === "ano") {
-      for (let i = 0; i < 12; i++) {
-        const inicio = new Date(
-          ahora.getFullYear(),
-          i,
-          1
-        );
-
-        const siguiente = new Date(
-          ahora.getFullYear(),
-          i + 1,
-          1
-        );
-
-        const total = ingresosPeriodo
-          .filter((ingreso) => {
-            const fecha =
-              new Date(ingreso.fecha);
-
-            return (
-              fecha >= inicio &&
-              fecha < siguiente
-            );
-          })
-          .reduce(
-            (sum, ingreso) =>
-              sum + Number(ingreso.precio),
-            0
-          );
-
-        datos.push({
-          etiqueta:
-            inicio.toLocaleDateString(
-              "es-PR",
-              {
-                month: "short",
-              }
-            ),
-          total,
-        });
-      }
-    }
-
-    return datos;
-  }, [
-    ingresosPeriodo,
-    periodo,
-    fechaActual,
-  ]);
+    const year = ahora.getFullYear();
+    return Array.from({ length: 12 }, (_, i) => {
+      const primero = new Date(year, i, 1);
+      const ultimo = new Date(year, i + 1, 0);
+      return {
+        etiqueta: primero.toLocaleDateString("es-PR", { month: "short" }),
+        total: sumar(claveFecha(primero), claveFecha(ultimo)),
+      };
+    });
+  }, [ingresosPeriodo, periodo, fechaActual]);
 
   async function eliminarIngreso(ingresoId: string) {
   const confirmar = window.confirm(
@@ -416,11 +276,7 @@ export default function EstadisticasPage() {
 
     if (ultimoIngreso) {
       const nuevaUltimaVisita =
-        new Date(
-          ultimoIngreso.fecha
-        )
-          .toISOString()
-          .split("T")[0];
+        fechaServicio(ultimoIngreso.fecha);
 
       await supabase
         .from("clientes")
@@ -464,21 +320,10 @@ export default function EstadisticasPage() {
   );
 
   function formatearFecha(fecha: string) {
-    return new Date(
-      fecha
-    ).toLocaleDateString("es-PR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  }
-
-  function formatearHora(fecha: string) {
-    return new Date(
-      fecha
-    ).toLocaleTimeString("es-PR", {
-      hour: "numeric",
-      minute: "2-digit",
+    const valor = fechaServicio(fecha);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return "Fecha no disponible";
+    return fechaCalendario(valor).toLocaleDateString("es-PR", {
+      day: "numeric", month: "short", year: "numeric",
     });
   }
 
@@ -809,10 +654,6 @@ export default function EstadisticasPage() {
 
           <p className="mt-1 text-xs text-zinc-600">
             {formatearFecha(
-              ingreso.fecha
-            )}{" "}
-            ·{" "}
-            {formatearHora(
               ingreso.fecha
             )}
           </p>
