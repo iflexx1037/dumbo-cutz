@@ -18,7 +18,6 @@ type Producto = {
   id: string;
   nombre: string;
   descripcion: string | null;
-  activo: boolean;
   asicale_variantes: Variante[];
 };
 
@@ -26,46 +25,157 @@ type Fila = {
   id: number;
   talla: string;
   variacion: string;
+  cantidad: string;
   precio: string;
   costo: string;
-  cantidad: string;
 };
-
-const nuevaFila = (id: number): Fila => ({
-  id,
-  talla: "",
-  variacion: "",
-  precio: "",
-  costo: "",
-  cantidad: "0",
-});
 
 const campo =
   "w-full rounded-xl border border-zinc-800 bg-zinc-900 p-3 text-white outline-none focus:border-zinc-500";
 
-const dinero = (valor: number) =>
-  Number(valor).toLocaleString("en-US", {
+function dinero(valor: number) {
+  return Number(valor).toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
   });
+}
+
+const tallas: Record<string, string> = {
+  xs: "XS",
+  s: "Small",
+  small: "Small",
+  m: "Medium",
+  medium: "Medium",
+  l: "Large",
+  large: "Large",
+  xl: "XL",
+  xlarge: "XL",
+  xxl: "2XL",
+  "2xl": "2XL",
+  xxxl: "3XL",
+  "3xl": "3XL",
+};
+
+function normalizarVariacion(texto: string) {
+  const valor = texto.trim();
+
+  const colores: Record<string, string> = {
+    negro: "Negro",
+    negra: "Negro",
+    negros: "Negro",
+    negras: "Negro",
+    blanco: "Blanco",
+    blanca: "Blanco",
+    blancos: "Blanco",
+    blancas: "Blanco",
+    gris: "Gris",
+    grises: "Gris",
+    rojo: "Rojo",
+    roja: "Rojo",
+    rojos: "Rojo",
+    rojas: "Rojo",
+    azul: "Azul",
+    azules: "Azul",
+    verde: "Verde",
+    verdes: "Verde",
+    beige: "Beige",
+  };
+
+  return (
+    colores[valor.toLowerCase()] ||
+    valor.charAt(0).toUpperCase() + valor.slice(1)
+  );
+}
+
+function interpretarInventario(texto: string) {
+  const lineas = texto
+    .split(/\r?\n/)
+    .map((linea) => linea.trim())
+    .filter(Boolean);
+
+  if (lineas.length < 2) {
+    throw new Error(
+      "Escribe el nombre del producto y al menos una línea de inventario."
+    );
+  }
+
+  const nombre = lineas[0];
+  const filas: Fila[] = [];
+
+  for (let i = 1; i < lineas.length; i++) {
+    const linea = lineas[i];
+
+    const resultado = linea.match(
+      /^(.*?)\s+(\d+)\s*(?:uds?\.?|unidades?)?$/i
+    );
+
+    if (!resultado || !resultado[1].trim()) {
+      throw new Error(
+        `No pude interpretar la línea ${i + 1}: "${linea}". Usa el formato "XL negras 10".`
+      );
+    }
+
+    const descripcion = resultado[1].trim();
+    const cantidad = resultado[2];
+
+    const partes = descripcion.split(/\s+/);
+    const posibleTalla = partes[0].toLowerCase();
+    const tieneTalla = Boolean(tallas[posibleTalla]);
+
+    const talla = tieneTalla
+      ? tallas[posibleTalla]
+      : "";
+
+    const variacion = tieneTalla
+      ? partes.slice(1).join(" ")
+      : descripcion;
+
+    filas.push({
+      id: i,
+      talla,
+      variacion: normalizarVariacion(variacion),
+      cantidad,
+      precio: "",
+      costo: "",
+    });
+  }
+
+  const claves = filas.map(
+    (fila) =>
+      `${fila.talla.toLowerCase()}|${fila.variacion.toLowerCase()}`
+  );
+
+  if (new Set(claves).size !== claves.length) {
+    throw new Error(
+      "Hay combinaciones de talla y variación repetidas. Corrige la lista."
+    );
+  }
+
+  return { nombre, filas };
+}
 
 export default function InventarioAsicalePage() {
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [texto, setTexto] = useState(
+    "Camisas Barber\nXL negras 10\nLarge negras 10\nXL blancas 5\nLarge blancas 5"
+  );
+
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [filas, setFilas] = useState<Fila[]>([
-    nuevaFila(1),
-  ]);
+  const [filas, setFilas] = useState<Fila[]>([]);
+  const [precioGeneral, setPrecioGeneral] = useState("");
+  const [costoGeneral, setCostoGeneral] = useState("");
+
   const [mostrarFormulario, setMostrarFormulario] =
     useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
   const [busqueda, setBusqueda] = useState("");
 
   const cargarProductos = useCallback(async () => {
     setCargando(true);
-    setError("");
 
     try {
       const supabase = createClient();
@@ -76,7 +186,6 @@ export default function InventarioAsicalePage() {
           id,
           nombre,
           descripcion,
-          activo,
           asicale_variantes (
             id,
             talla,
@@ -107,6 +216,34 @@ export default function InventarioAsicalePage() {
     void cargarProductos();
   }, [cargarProductos]);
 
+  function generarVariantes() {
+    setError("");
+    setMensaje("");
+
+    try {
+      const resultado = interpretarInventario(texto);
+
+      setNombre(resultado.nombre);
+      setFilas(
+        resultado.filas.map((fila) => ({
+          ...fila,
+          precio: precioGeneral,
+          costo: costoGeneral,
+        }))
+      );
+
+      setMensaje(
+        `Se generaron ${resultado.filas.length} variantes. Revisa las cantidades y los precios antes de guardar.`
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo interpretar el inventario."
+      );
+    }
+  }
+
   function actualizarFila(
     id: number,
     campoFila: keyof Omit<Fila, "id">,
@@ -121,75 +258,53 @@ export default function InventarioAsicalePage() {
     );
   }
 
-  function agregarVariante() {
-    setFilas((actuales) => [
-      ...actuales,
-      nuevaFila(
-        Math.max(0, ...actuales.map((f) => f.id)) + 1
-      ),
-    ]);
-  }
-
-  function eliminarVariante(id: number) {
+  function aplicarPrecios() {
     setFilas((actuales) =>
-      actuales.length > 1
-        ? actuales.filter((fila) => fila.id !== id)
-        : actuales
+      actuales.map((fila) => ({
+        ...fila,
+        precio: precioGeneral,
+        costo: costoGeneral,
+      }))
     );
   }
 
-  async function guardarProducto(
-    e: React.FormEvent<HTMLFormElement>
-  ) {
-    e.preventDefault();
+  async function guardarProducto() {
     setError("");
+    setMensaje("");
 
-    if (!nombre.trim()) {
-      setError("Escribe el nombre del producto.");
+    if (!nombre.trim() || filas.length === 0) {
+      setError("Primero genera las variantes.");
       return;
     }
 
-    const variantes = filas.map((fila) => ({
-      talla: fila.talla.trim() || null,
-      variacion: fila.variacion.trim() || null,
-      precio: Number(fila.precio),
-      costo: Number(fila.costo),
-      cantidad: Number(fila.cantidad),
-    }));
-
-    const invalido = filas.some((fila, i) => {
-      const variante = variantes[i];
-
-      return (
-        fila.precio.trim() === "" ||
-        fila.costo.trim() === "" ||
-        fila.cantidad.trim() === "" ||
-        !Number.isFinite(variante.precio) ||
-        !Number.isFinite(variante.costo) ||
-        !Number.isSafeInteger(variante.cantidad) ||
-        variante.precio < 0 ||
-        variante.costo < 0 ||
-        variante.cantidad < 0
-      );
-    });
+    const invalido = filas.some(
+      (fila) =>
+        !fila.precio.trim() ||
+        !fila.costo.trim() ||
+        !fila.cantidad.trim() ||
+        !Number.isFinite(Number(fila.precio)) ||
+        !Number.isFinite(Number(fila.costo)) ||
+        !Number.isSafeInteger(Number(fila.cantidad)) ||
+        Number(fila.precio) < 0 ||
+        Number(fila.costo) < 0 ||
+        Number(fila.cantidad) < 0
+    );
 
     if (invalido) {
       setError(
-        "Revisa precio, costo y cantidad de cada variante."
+        "Completa correctamente los precios, costos y cantidades de todas las variantes."
       );
       return;
     }
 
-    const claves = variantes.map(
-      (v) =>
-        `${(v.talla || "").toLowerCase()}|${(
-          v.variacion || ""
-        ).toLowerCase()}`
+    const claves = filas.map(
+      (fila) =>
+        `${fila.talla.trim().toLowerCase()}|${fila.variacion.trim().toLowerCase()}`
     );
 
     if (new Set(claves).size !== claves.length) {
       setError(
-        "No repitas la misma combinación de talla y variación."
+        "Hay variantes repetidas. Cada combinación debe ser única."
       );
       return;
     }
@@ -204,7 +319,13 @@ export default function InventarioAsicalePage() {
         {
           p_nombre: nombre.trim(),
           p_descripcion: descripcion.trim() || null,
-          p_variantes: variantes,
+          p_variantes: filas.map((fila) => ({
+            talla: fila.talla.trim() || null,
+            variacion: fila.variacion.trim() || null,
+            precio: Number(fila.precio),
+            costo: Number(fila.costo),
+            cantidad: Number(fila.cantidad),
+          })),
         }
       );
 
@@ -212,10 +333,14 @@ export default function InventarioAsicalePage() {
 
       setNombre("");
       setDescripcion("");
-      setFilas([nuevaFila(1)]);
+      setFilas([]);
+      setTexto("");
+      setPrecioGeneral("");
+      setCostoGeneral("");
       setMostrarFormulario(false);
 
       await cargarProductos();
+      setMensaje("Producto guardado correctamente.");
     } catch (err) {
       setError(
         err instanceof Error
@@ -227,23 +352,23 @@ export default function InventarioAsicalePage() {
     }
   }
 
-  const productosFiltrados = productos.filter((p) =>
+  const filtrados = productos.filter((p) =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   const totalUnidades = productos.reduce(
-    (total, p) =>
-      total +
+    (suma, p) =>
+      suma +
       p.asicale_variantes.reduce(
-        (suma, v) => suma + Number(v.cantidad),
+        (total, v) => total + Number(v.cantidad),
         0
       ),
     0
   );
 
   const inventarioBajo = productos.reduce(
-    (total, p) =>
-      total +
+    (suma, p) =>
+      suma +
       p.asicale_variantes.filter(
         (v) => Number(v.cantidad) <= 5
       ).length,
@@ -271,15 +396,16 @@ export default function InventarioAsicalePage() {
             </h1>
 
             <p className="mt-3 text-zinc-400">
-              Control de productos, tallas y existencias.
+              Administra productos, tallas, colores y cantidades.
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => {
-              setError("");
               setMostrarFormulario(!mostrarFormulario);
+              setError("");
+              setMensaje("");
             }}
             className="rounded-xl bg-white px-6 py-3 font-bold text-black"
           >
@@ -322,216 +448,267 @@ export default function InventarioAsicalePage() {
         </div>
 
         {mostrarFormulario && (
-          <form
-            onSubmit={guardarProducto}
-            className="mt-8 space-y-6 rounded-3xl border border-zinc-700 bg-zinc-950 p-6"
-          >
-            <h2 className="text-2xl font-bold">
-              Crear producto
-            </h2>
-
+          <section className="mt-8 space-y-6 rounded-3xl border border-zinc-700 bg-zinc-950 p-6">
             <div>
-              <label className="mb-2 block text-sm text-zinc-400">
-                Nombre del producto
-              </label>
-              <input
-                className={campo}
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej. Camisas Asicale Club"
-                required
-              />
+              <h2 className="text-2xl font-bold">
+                Crear producto automáticamente
+              </h2>
+
+              <p className="mt-2 text-sm text-zinc-400">
+                Escribe el nombre en la primera línea.
+                Después, una variante y su cantidad por línea.
+              </p>
             </div>
 
             <div>
               <label className="mb-2 block text-sm text-zinc-400">
-                Descripción (opcional)
+                Lista de inventario
               </label>
+
               <textarea
-                className={campo}
-                rows={2}
-                value={descripcion}
-                onChange={(e) =>
-                  setDescripcion(e.target.value)
+                className={`${campo} font-mono`}
+                rows={7}
+                value={texto}
+                onChange={(e) => {
+                  setTexto(e.target.value);
+                  setFilas([]);
+                  setMensaje("");
+                }}
+                placeholder={
+                  "Camisas Barber\nXL negras 10\nLarge negras 10\nXL blancas 5"
                 }
-                placeholder="Ej. Nuevo drop de noviembre"
               />
+
+              <p className="mt-2 text-xs text-zinc-500">
+                Ejemplo sin tallas: Medias Asicale,
+                seguido de "Blancas 15" y "Negras 20".
+              </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xl font-bold">
-                    Tallas y variaciones
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm text-zinc-400">
+                  Precio de venta general ($)
+                </label>
+
+                <input
+                  className={campo}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={precioGeneral}
+                  onChange={(e) =>
+                    setPrecioGeneral(e.target.value)
+                  }
+                  placeholder="45.00"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-zinc-400">
+                  Costo por unidad general ($)
+                </label>
+
+                <input
+                  className={campo}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={costoGeneral}
+                  onChange={(e) =>
+                    setCostoGeneral(e.target.value)
+                  }
+                  placeholder="20.00"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={generarVariantes}
+              className="w-full rounded-xl border border-zinc-600 bg-zinc-800 p-4 font-bold hover:bg-zinc-700"
+            >
+              ✨ Generar variantes automáticamente
+            </button>
+
+            {filas.length > 0 && (
+              <div className="space-y-5">
+                <div className="border-t border-zinc-800 pt-6">
+                  <h3 className="text-2xl font-bold">
+                    {nombre}
                   </h3>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Deja la talla vacía si no aplica.
+
+                  <p className="mt-2 text-zinc-400">
+                    {filas.length} variantes ·{" "}
+                    {filas.reduce(
+                      (s, f) => s + (Number(f.cantidad) || 0),
+                      0
+                    )}{" "}
+                    unidades
                   </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm text-zinc-400">
+                    Descripción (opcional)
+                  </label>
+
+                  <textarea
+                    className={campo}
+                    rows={2}
+                    value={descripcion}
+                    onChange={(e) =>
+                      setDescripcion(e.target.value)
+                    }
+                    placeholder="Ej. Drop de noviembre"
+                  />
                 </div>
 
                 <button
                   type="button"
-                  onClick={agregarVariante}
+                  onClick={aplicarPrecios}
                   className="rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
                 >
-                  + Añadir variante
+                  Aplicar precio y costo general a todas
                 </button>
-              </div>
 
-              {filas.map((fila, indice) => (
-                <div
-                  key={fila.id}
-                  className="rounded-2xl border border-zinc-800 bg-black p-4"
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <h4 className="font-semibold">
+                {filas.map((fila, indice) => (
+                  <div
+                    key={fila.id}
+                    className="rounded-2xl border border-zinc-800 bg-black p-4"
+                  >
+                    <h4 className="mb-4 font-bold">
                       Variante {indice + 1}
                     </h4>
 
-                    {filas.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          eliminarVariante(fila.id)
-                        }
-                        className="text-sm text-red-400"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm text-zinc-400">
+                          Talla
+                        </label>
+                        <input
+                          className={campo}
+                          value={fila.talla}
+                          onChange={(e) =>
+                            actualizarFila(
+                              fila.id,
+                              "talla",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Sin talla"
+                        />
+                      </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-2 block text-sm text-zinc-400">
-                        Talla (opcional)
-                      </label>
-                      <input
-                        className={campo}
-                        value={fila.talla}
-                        onChange={(e) =>
-                          actualizarFila(
-                            fila.id,
-                            "talla",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Small, Medium, Large..."
-                      />
-                    </div>
+                      <div>
+                        <label className="mb-2 block text-sm text-zinc-400">
+                          Variación
+                        </label>
+                        <input
+                          className={campo}
+                          value={fila.variacion}
+                          onChange={(e) =>
+                            actualizarFila(
+                              fila.id,
+                              "variacion",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Negro, blanco..."
+                        />
+                      </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm text-zinc-400">
-                        Variación (opcional)
-                      </label>
-                      <input
-                        className={campo}
-                        value={fila.variacion}
-                        onChange={(e) =>
-                          actualizarFila(
-                            fila.id,
-                            "variacion",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Negro, blanco, diseño..."
-                      />
-                    </div>
+                      <div>
+                        <label className="mb-2 block text-sm text-zinc-400">
+                          Cantidad
+                        </label>
+                        <input
+                          className={campo}
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={fila.cantidad}
+                          onChange={(e) =>
+                            actualizarFila(
+                              fila.id,
+                              "cantidad",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm text-zinc-400">
-                        Precio de venta ($)
-                      </label>
-                      <input
-                        className={campo}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        required
-                        value={fila.precio}
-                        onChange={(e) =>
-                          actualizarFila(
-                            fila.id,
-                            "precio",
-                            e.target.value
-                          )
-                        }
-                        placeholder="45.00"
-                      />
-                    </div>
+                      <div>
+                        <label className="mb-2 block text-sm text-zinc-400">
+                          Precio ($)
+                        </label>
+                        <input
+                          className={campo}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={fila.precio}
+                          onChange={(e) =>
+                            actualizarFila(
+                              fila.id,
+                              "precio",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm text-zinc-400">
-                        Costo por unidad ($)
-                      </label>
-                      <input
-                        className={campo}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        required
-                        value={fila.costo}
-                        onChange={(e) =>
-                          actualizarFila(
-                            fila.id,
-                            "costo",
-                            e.target.value
-                          )
-                        }
-                        placeholder="20.00"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="mb-2 block text-sm text-zinc-400">
-                        Cantidad disponible
-                      </label>
-                      <input
-                        className={campo}
-                        type="number"
-                        min="0"
-                        step="1"
-                        required
-                        value={fila.cantidad}
-                        onChange={(e) =>
-                          actualizarFila(
-                            fila.id,
-                            "cantidad",
-                            e.target.value
-                          )
-                        }
-                      />
+                      <div className="sm:col-span-2">
+                        <label className="mb-2 block text-sm text-zinc-400">
+                          Costo por unidad ($)
+                        </label>
+                        <input
+                          className={campo}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={fila.costo}
+                          onChange={(e) =>
+                            actualizarFila(
+                              fila.id,
+                              "costo",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
 
-            {error && (
-              <p role="alert" className="text-sm text-red-400">
-                {error}
-              </p>
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={guardarProducto}
+                  className="w-full rounded-xl bg-white p-4 font-bold text-black disabled:opacity-50"
+                >
+                  {guardando
+                    ? "Guardando producto..."
+                    : "Guardar producto"}
+                </button>
+              </div>
             )}
-
-            <button
-              type="submit"
-              disabled={guardando}
-              className="w-full rounded-xl bg-white p-4 font-bold text-black disabled:opacity-50"
-            >
-              {guardando
-                ? "Guardando producto..."
-                : "Guardar producto"}
-            </button>
-          </form>
+          </section>
         )}
 
-        {!mostrarFormulario && error && (
-          <p role="alert" className="mt-6 text-red-400">
+        {error && (
+          <p role="alert" className="mt-5 text-red-400">
             {error}
           </p>
         )}
 
-        <section className="mt-8">
+        {mensaje && (
+          <p role="status" className="mt-5 text-green-400">
+            {mensaje}
+          </p>
+        )}
+
+        <section className="mt-10">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-2xl font-bold">
               Productos registrados
@@ -548,22 +725,22 @@ export default function InventarioAsicalePage() {
 
           <input
             className={`${campo} mt-5`}
+            placeholder="Buscar producto..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar producto..."
           />
 
           {cargando ? (
             <p className="mt-8 text-zinc-400">
               Cargando inventario...
             </p>
-          ) : productosFiltrados.length === 0 ? (
+          ) : filtrados.length === 0 ? (
             <p className="mt-8 text-zinc-400">
               No hay productos para mostrar.
             </p>
           ) : (
             <div className="mt-6 space-y-5">
-              {productosFiltrados.map((producto) => (
+              {filtrados.map((producto) => (
                 <div
                   key={producto.id}
                   className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6"
@@ -592,18 +769,15 @@ export default function InventarioAsicalePage() {
                                 variante.variacion,
                               ]
                                 .filter(Boolean)
-                                .join(" · ") ||
-                                "Única"}
+                                .join(" · ") || "Única"}
                             </p>
 
                             <p className="mt-1 text-sm text-zinc-400">
-                              Precio:{" "}
-                              {dinero(variante.precio)}
+                              Precio: {dinero(variante.precio)}
                             </p>
 
                             <p className="text-xs text-zinc-500">
-                              Costo:{" "}
-                              {dinero(variante.costo)}
+                              Costo: {dinero(variante.costo)}
                             </p>
                           </div>
 
@@ -616,10 +790,6 @@ export default function InventarioAsicalePage() {
                               }`}
                             >
                               {variante.cantidad} uds.
-                            </p>
-
-                            <p className="mt-1 text-xs text-zinc-500">
-                              Disponibles
                             </p>
                           </div>
                         </div>
