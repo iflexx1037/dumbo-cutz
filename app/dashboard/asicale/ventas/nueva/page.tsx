@@ -58,6 +58,7 @@ export default function NuevaVentaAsicalePage() {
   const [fecha, setFecha] = useState("");
   const [metodoPago, setMetodoPago] = useState("ATH Móvil");
   const [notas, setNotas] = useState("");
+  const [descuento, setDescuento] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -156,12 +157,26 @@ export default function NuevaVentaAsicalePage() {
     ),
   }));
 
-  const total = detalles.reduce(
-    (suma, item) =>
-      suma +
-      Number(item.variante?.precio || 0) * item.cantidad,
-    0
+const subtotal = detalles.reduce(
+  (suma, item) =>
+    suma +
+    Number(item.variante?.precio || 0) * item.cantidad,
+  0
+);
+
+const descuentoNumero = Number(descuento || 0);
+
+const descuentoValido =
+  descuento.trim() === "" ||
+  (
+    Number.isFinite(descuentoNumero) &&
+    descuentoNumero >= 0 &&
+    (descuentoNumero === 0 || descuentoNumero < subtotal) &&
+    Math.round(descuentoNumero * 100) / 100 ===
+      descuentoNumero
   );
+
+const total = subtotal - descuentoNumero;
 
   const unidades = carrito.reduce(
     (suma, item) => suma + item.cantidad,
@@ -259,6 +274,12 @@ export default function NuevaVentaAsicalePage() {
       return;
     }
 
+    if (!descuentoValido || subtotal <= 0) {
+  setError(
+    "El descuento debe ser válido y menor que el subtotal."
+  );
+  return;
+}
     setGuardando(true);
 
     try {
@@ -267,10 +288,11 @@ export default function NuevaVentaAsicalePage() {
       const { error: guardarError } = await supabase.rpc(
         "asicale_registrar_venta",
         {
-          p_articulos: carrito,
-          p_fecha: fecha,
-          p_metodo_pago: metodoPago,
-          p_notas: notas.trim() || null,
+p_articulos: carrito,
+p_fecha: fecha,
+p_metodo_pago: metodoPago,
+p_notas: notas.trim() || null,
+p_descuento: descuentoNumero,
         }
       );
 
@@ -585,6 +607,58 @@ export default function NuevaVentaAsicalePage() {
         </section>
 
         <div className="mt-8 rounded-3xl border border-zinc-700 bg-zinc-950 p-6">
+            
+<div className="mb-6 space-y-4">
+  <h3 className="text-xl font-bold">
+    🏷️ Oferta especial
+  </h3>
+
+  <p className="text-sm text-zinc-400">
+    Aplica un descuento a esta venta sin modificar
+    los precios originales de los productos.
+  </p>
+
+  <div>
+    <label className="mb-2 block text-sm text-zinc-400">
+      Descuento en dólares ($)
+    </label>
+
+    <input
+      type="number"
+      min="0"
+      max={subtotal > 0 ? subtotal - 0.01 : 0}
+      step="0.01"
+      className={campo}
+      value={descuento}
+      onChange={(e) => setDescuento(e.target.value)}
+      placeholder="Ej. 10.00"
+    />
+  </div>
+
+  <div className="flex justify-between text-zinc-400">
+    <span>Subtotal original</span>
+    <span>{dinero(subtotal)}</span>
+  </div>
+
+  <div className="flex justify-between text-red-400">
+    <span>Descuento aplicado</span>
+    <span>
+      -{dinero(
+        Number.isFinite(descuentoNumero)
+          ? Math.max(0, descuentoNumero)
+          : 0
+      )}
+    </span>
+  </div>
+
+  {!descuentoValido && (
+    <p className="text-sm text-red-400">
+      Introduce un descuento válido menor que el subtotal.
+    </p>
+  )}
+
+  <div className="border-t border-zinc-800 pt-4" />
+</div>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm text-zinc-400">
@@ -606,6 +680,7 @@ export default function NuevaVentaAsicalePage() {
               guardando ||
               cargando ||
               carrito.length === 0 ||
+              !descuentoValido ||
               total <= 0
             }
             onClick={guardarVenta}
