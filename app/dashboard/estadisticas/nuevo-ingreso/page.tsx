@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,16 +13,30 @@ type Cliente = {
   corte_actual: string | null;
 };
 
+function obtenerFechaPuertoRico() {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Puerto_Rico",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const obtener = (tipo: string) =>
+    partes.find((parte) => parte.type === tipo)?.value ?? "";
+
+  return `${obtener("year")}-${obtener("month")}-${obtener("day")}`;
+}
+
 export default function NuevoIngresoPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loadingClientes, setLoadingClientes] = useState(true);
 
-  const [tipoCliente, setTipoCliente] = useState<"existente" | "nuevo">(
-    "existente"
-  );
+  const [tipoCliente, setTipoCliente] = useState<
+    "existente" | "nuevo"
+  >("existente");
 
   const [clienteId, setClienteId] = useState("");
   const [nombreNuevo, setNombreNuevo] = useState("");
@@ -33,31 +48,38 @@ export default function NuevoIngresoPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    cargarClientes();
+    let activo = true;
 
-    const hoy = new Date();
-    const fechaHoy = hoy.toISOString().split("T")[0];
-    setFecha(fechaHoy);
-  }, []);
+    async function cargarClientes() {
+      setLoadingClientes(true);
 
-  async function cargarClientes() {
-    setLoadingClientes(true);
+      const { data, error: consultaError } = await supabase
+        .from("clientes")
+        .select("id, nombre, precio, corte_actual")
+        .order("nombre", { ascending: true });
 
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("id, nombre, precio, corte_actual")
-      .order("nombre", { ascending: true });
+      if (!activo) return;
 
-    if (error) {
-      console.error("Error cargando clientes:", error);
-      setError("No se pudieron cargar los clientes.");
+      if (consultaError) {
+        console.error(
+          "Error cargando clientes:",
+          consultaError
+        );
+        setError("No se pudieron cargar los clientes.");
+      } else {
+        setClientes(data || []);
+      }
+
       setLoadingClientes(false);
-      return;
     }
 
-    setClientes(data || []);
-    setLoadingClientes(false);
-  }
+    setFecha(obtenerFechaPuertoRico());
+    void cargarClientes();
+
+    return () => {
+      activo = false;
+    };
+  }, [supabase]);
 
   function seleccionarCliente(id: string) {
     setClienteId(id);
@@ -77,6 +99,8 @@ export default function NuevoIngresoPage() {
 
   async function guardarIngreso(e: React.FormEvent) {
     e.preventDefault();
+
+    if (loading) return;
 
     setLoading(true);
     setError("");
@@ -99,14 +123,21 @@ export default function NuevoIngresoPage() {
       return;
     }
 
-    if (!precio || Number(precio) < 0) {
+    if (
+      precio.trim() === "" ||
+      !Number.isFinite(Number(precio)) ||
+      Number(precio) < 0
+    ) {
       setError("Escribe un precio válido.");
       setLoading(false);
       return;
     }
 
-    if (!fecha) {
-      setError("Selecciona una fecha.");
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(fecha) ||
+      Number.isNaN(Date.parse(`${fecha}T12:00:00Z`))
+    ) {
+      setError("Selecciona una fecha válida.");
       setLoading(false);
       return;
     }
@@ -114,11 +145,11 @@ export default function NuevoIngresoPage() {
     let clienteFinalId: string | null = null;
     let nombreFinal = "";
 
-    /*
-      CLIENTE EXISTENTE
-    */
+    // CLIENTE EXISTENTE
     if (tipoCliente === "existente") {
-      const cliente = clientes.find((c) => c.id === clienteId);
+      const cliente = clientes.find(
+        (c) => c.id === clienteId
+      );
 
       if (!cliente) {
         setError("No encontramos ese cliente.");
@@ -130,9 +161,7 @@ export default function NuevoIngresoPage() {
       nombreFinal = cliente.nombre;
     }
 
-    /*
-      CLIENTE NUEVO
-    */
+    // CLIENTE NUEVO
     if (tipoCliente === "nuevo") {
       const { data: nuevoCliente, error: nuevoClienteError } =
         await supabase
@@ -157,10 +186,18 @@ export default function NuevoIngresoPage() {
       nombreFinal = nuevoCliente.nombre;
     }
 
-    /*
-      CREAR INGRESO
-    */
-    const fechaIngreso = new Date(`${fecha}T12:00:00`).toISOString();
+    // CREAR INGRESO
+    //
+    // Conservamos el formato timestamp que utiliza
+    // actualmente la aplicación.
+    //
+    // Las 12:00 p. m. de Puerto Rico equivalen
+    // a las 16:00 UTC, porque Puerto Rico usa UTC-4.
+    //
+    // Así evitamos depender de la zona horaria
+    // configurada en el dispositivo.
+
+    const fechaIngreso = `${fecha}T12:00:00-04:00`;
 
     const { error: ingresoError } = await supabase
       .from("ingresos")
@@ -175,14 +212,15 @@ export default function NuevoIngresoPage() {
 
     if (ingresoError) {
       console.error(ingresoError);
-      setError("No se pudo registrar el ingreso.");
+      setError(
+        "No se pudo registrar el ingreso: " +
+          ingresoError.message
+      );
       setLoading(false);
       return;
     }
 
-    /*
-      ACTUALIZAR CLIENTE EXISTENTE
-    */
+    // ACTUALIZAR CLIENTE EXISTENTE
     if (tipoCliente === "existente" && clienteFinalId) {
       const { error: updateError } = await supabase
         .from("clientes")
@@ -210,7 +248,6 @@ export default function NuevoIngresoPage() {
   return (
     <main className="min-h-screen bg-black px-6 py-8 text-white">
       <div className="mx-auto max-w-3xl">
-
         {/* HEADER */}
         <div className="mb-8">
           <Link
@@ -233,7 +270,6 @@ export default function NuevoIngresoPage() {
           onSubmit={guardarIngreso}
           className="space-y-6 rounded-3xl border border-zinc-800 bg-zinc-950 p-6 md:p-8"
         >
-
           {/* TIPO DE CLIENTE */}
           <div>
             <label className="mb-3 block text-sm font-medium text-zinc-300">
@@ -241,10 +277,11 @@ export default function NuevoIngresoPage() {
             </label>
 
             <div className="grid grid-cols-2 gap-3">
-
               <button
                 type="button"
-                onClick={() => setTipoCliente("existente")}
+                onClick={() =>
+                  setTipoCliente("existente")
+                }
                 className={`rounded-xl border px-4 py-4 text-left transition ${
                   tipoCliente === "existente"
                     ? "border-white bg-white text-black"
@@ -262,7 +299,9 @@ export default function NuevoIngresoPage() {
 
               <button
                 type="button"
-                onClick={() => setTipoCliente("nuevo")}
+                onClick={() =>
+                  setTipoCliente("nuevo")
+                }
                 className={`rounded-xl border px-4 py-4 text-left transition ${
                   tipoCliente === "nuevo"
                     ? "border-white bg-white text-black"
@@ -277,7 +316,6 @@ export default function NuevoIngresoPage() {
                   Primera vez
                 </div>
               </button>
-
             </div>
           </div>
 
@@ -290,7 +328,9 @@ export default function NuevoIngresoPage() {
 
               <select
                 value={clienteId}
-                onChange={(e) => seleccionarCliente(e.target.value)}
+                onChange={(e) =>
+                  seleccionarCliente(e.target.value)
+                }
                 disabled={loadingClientes}
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-white"
               >
@@ -301,7 +341,10 @@ export default function NuevoIngresoPage() {
                 </option>
 
                 {clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>
+                  <option
+                    key={cliente.id}
+                    value={cliente.id}
+                  >
                     {cliente.nombre}
                   </option>
                 ))}
@@ -319,7 +362,9 @@ export default function NuevoIngresoPage() {
               <input
                 type="text"
                 value={nombreNuevo}
-                onChange={(e) => setNombreNuevo(e.target.value)}
+                onChange={(e) =>
+                  setNombreNuevo(e.target.value)
+                }
                 placeholder="Ej. Pedro Rodríguez"
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-white"
               />
@@ -338,7 +383,9 @@ export default function NuevoIngresoPage() {
 
             <textarea
               value={servicio}
-              onChange={(e) => setServicio(e.target.value)}
+              onChange={(e) =>
+                setServicio(e.target.value)
+              }
               placeholder="Ej. High fade + barba + cejas"
               rows={3}
               className="w-full resize-none rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-white"
@@ -361,7 +408,9 @@ export default function NuevoIngresoPage() {
                 step="0.01"
                 min="0"
                 value={precio}
-                onChange={(e) => setPrecio(e.target.value)}
+                onChange={(e) =>
+                  setPrecio(e.target.value)
+                }
                 placeholder="25.00"
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-900 py-3 pl-8 pr-4 text-white outline-none focus:border-white"
               />
@@ -371,27 +420,36 @@ export default function NuevoIngresoPage() {
           {/* FECHA */}
           <div>
             <label className="mb-2 block text-sm font-medium text-zinc-300">
-              Fecha
+              Fecha real del ingreso
             </label>
 
             <input
               type="date"
               value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
+              onChange={(e) =>
+                setFecha(e.target.value)
+              }
               className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-white"
             />
+
+            <p className="mt-2 text-xs text-zinc-500">
+              Selecciona el día en que realizaste el
+              servicio, aunque estés registrándolo después.
+            </p>
           </div>
 
           {/* ERROR */}
           {error && (
-            <div className="rounded-xl border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+            <div
+              role="alert"
+              className="rounded-xl border border-red-900 bg-red-950/40 px-4 py-3 text-sm text-red-400"
+            >
               {error}
             </div>
           )}
 
           {/* BOTONES */}
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-
             <Link
               href="/dashboard/estadisticas"
               className="rounded-xl border border-zinc-700 px-6 py-3 text-center font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
@@ -404,11 +462,11 @@ export default function NuevoIngresoPage() {
               disabled={loading}
               className="rounded-xl bg-white px-6 py-3 font-bold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "GUARDANDO..." : "GUARDAR INGRESO"}
+              {loading
+                ? "GUARDANDO..."
+                : "GUARDAR INGRESO"}
             </button>
-
           </div>
-
         </form>
       </div>
     </main>
