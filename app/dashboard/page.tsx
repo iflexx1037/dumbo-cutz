@@ -466,6 +466,40 @@ export default function DashboardPage() {
             </p>
           </Link>
 
+
+<Link
+  href="/dashboard/configuracion-reservas"
+  className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5 transition hover:border-zinc-600 sm:col-span-2 sm:p-8"
+>
+  <div className="mb-5 text-4xl">⚙️</div>
+
+  <h2 className="text-2xl font-bold">
+    Configuración de reservas
+  </h2>
+
+  <p className="mt-3 text-zinc-400">
+    Administra tus horarios, servicios, precios,
+    días libres y reservas online.
+  </p>
+
+  <div className="mt-5 flex flex-wrap gap-2">
+    {[
+      "Horarios",
+      "Servicios",
+      "Días libres",
+      "Reservas online",
+    ].map((texto) => (
+      <span
+        key={texto}
+        className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400"
+      >
+        {texto}
+      </span>
+    ))}
+  </div>
+</Link>
+
+
           <Link
             href="/dashboard/asicale"
             className="rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:border-zinc-600 sm:col-span-2"
