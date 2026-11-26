@@ -51,10 +51,11 @@ export default function NuevaCitaPage() {
     async function cargarClientes() {
       setCargando(true);
 
-      const { data, error: consultaError } = await supabase
-        .from("clientes")
-        .select("id, nombre, precio")
-        .order("nombre", { ascending: true });
+const { data, error: consultaError } = await supabase
+  .from("clientes")
+  .select("id, nombre, precio")
+  .eq("eliminado", false)
+  .order("nombre", { ascending: true });
 
       if (!activo) return;
 

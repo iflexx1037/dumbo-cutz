@@ -53,10 +53,11 @@ export default function NuevoIngresoPage() {
     async function cargarClientes() {
       setLoadingClientes(true);
 
-      const { data, error: consultaError } = await supabase
-        .from("clientes")
-        .select("id, nombre, precio, corte_actual")
-        .order("nombre", { ascending: true });
+const { data, error: consultaError } = await supabase
+  .from("clientes")
+  .select("id, nombre, precio, corte_actual")
+  .eq("eliminado", false)
+  .order("nombre", { ascending: true });
 
       if (!activo) return;
 
